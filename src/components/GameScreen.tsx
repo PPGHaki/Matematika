@@ -79,8 +79,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     let target = containers[targetIndex];
 
     if (!target || target.items.length >= target.capacity) {
-      if (level === 1) {
-        // Auto-add container in Level 1
+      const openIdx = containers.findIndex((c) => c.items.length < c.capacity);
+      if (openIdx !== -1) {
+        targetIndex = openIdx;
+        setActiveContainerIndex(openIdx);
+      } else if (level === 1) {
+        // Auto-add container in Level 1 when all existing containers are full
         const newContainers = [...containers, { capacity: question.groupSize, items: [question.emoji] }];
         setContainers(newContainers);
         setActiveContainerIndex(newContainers.length - 1);
@@ -88,18 +92,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         return;
       } else {
         // Find next open container
-        const openIdx = containers.findIndex((c) => c.items.length < c.capacity);
-        if (openIdx !== -1) {
-          targetIndex = openIdx;
-          setActiveContainerIndex(openIdx);
-        } else {
-          setAlertMessage({
-            title: 'Wadah Aktif Penuh',
-            text: 'Wadah ini sudah penuh! Klik tombol "+ Wadah Baru" untuk menambah wadah pengelompokan.',
-            icon: '📦',
-          });
-          return;
-        }
+        setAlertMessage({
+          title: 'Wadah Aktif Penuh',
+          text: 'Wadah ini sudah penuh! Klik tombol "+ Wadah Baru" untuk menambah wadah pengelompokan.',
+          icon: '📦',
+        });
+        return;
       }
     }
 
@@ -254,9 +252,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({
       if (isNaN(tot) || isNaN(sz) || isNaN(res) || tot !== expectedTotal || sz !== expectedSize || res !== expectedRes) {
         playWrongSound();
         onQuestionCompleted(false, 0);
+        let errorMsg = 'Kalimat pembagian yang kamu tulis belum sesuai dengan cerita. Periksa kembali angka total, isi per wadah, dan hasilnya!';
+        if (question.hots && tot === question.actualTotal) {
+          errorMsg = `Perhatikan cerita: Mula-mula ada ${question.actualTotal}, tetapi sebanyak ${question.reserve} benda disisihkan ke Area Cadangan (${question.actualTotal} - ${question.reserve} = ${question.total}). Gunakan angka ${question.total} untuk kalimat pembagian!`;
+        }
         setAlertMessage({
-          title: 'Kalimat Pembagian Salah',
-          text: 'Kalimat pembagian yang kamu tulis belum sesuai dengan cerita. Periksa kembali angka total, isi per wadah, dan hasilnya!',
+          title: 'Kalimat Pembagian Belum Tepat',
+          text: errorMsg,
           icon: '❌',
         });
         return;
@@ -682,7 +684,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
 
           <div className="bg-emerald-950/80 border border-emerald-600 rounded-2xl p-3.5 space-y-1">
             <div className="font-game text-lg sm:text-xl text-yellow-300 font-extrabold tracking-wide">
-              {Array.from({ length: containers.length }).map(() => question.groupSize).join(' - ')} = 0 ({containers.length} kali pengurangan)
+              {question.total} - {Array.from({ length: containers.length }).map(() => question.groupSize).join(' - ')} = 0 ({containers.length} kali pengurangan)
             </div>
             <div className="text-xs sm:text-sm text-emerald-100 font-medium">
               Artinya: {question.total} ÷ {question.groupSize} = {containers.length} Wadah
